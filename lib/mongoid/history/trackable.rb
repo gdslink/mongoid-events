@@ -34,7 +34,7 @@ module Mongoid::History
         end
 
         field options[:version_field].to_sym, :type => Integer
-        referenced_in options[:modifier_field].to_sym, :class_name => Mongoid::History.modifier_class_name
+        field options[:modifier_field].to_sym, :type => String
 
         include MyInstanceMethods
         extend SingletonMethods
