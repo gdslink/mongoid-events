@@ -137,7 +137,7 @@ module Mongoid::History
         # and find the first association that matches _parent.
         if node._parent
           meta = node.reflect_on_all_associations(:embedded_in).find do |meta|
-            node._parent == node.send(meta.key)
+            node._parent.class.name == meta.class_name
           end
 
           inverse = node._parent.reflect_on_association(meta.inverse)
