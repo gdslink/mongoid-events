@@ -6,14 +6,15 @@ module Mongoid::History
       def track_history(options={})
         model_name = self.name.tableize.singularize.to_sym
         default_options = {
-          :on             =>  :all,
-          :except         =>  [:created_at, :updated_at],
-          :modifier_field =>  :modifier,
-          :version_field  =>  :version,
-          :scope          =>  model_name,
-          :track_create   =>  false,
-          :track_update   =>  true,
-          :track_destroy  =>  false,
+          :on                 =>  :all,
+          :except             =>  [:created_at, :updated_at],
+          :modifier_field     =>  :modifier,
+          :transaction_field  =>  :transaction_id,
+          :version_field      =>  :version,
+          :scope              =>  model_name,
+          :track_create       =>  false,
+          :track_update       =>  true,
+          :track_destroy      =>  false,
         }
 
         options = default_options.merge(options)
@@ -71,7 +72,7 @@ module Mongoid::History
 
     module MyInstanceMethods
       def history_tracks
-        @history_tracks ||= Mongoid::History.tracker_class.where(:scope => history_trackable_options[:scope], :association_chain => association_hash)
+        @history_tracks ||= Mongoid::History.tracker_class.where(:scope => history_trackable_options[:scope], :'association_chain.name' => association_hash['name'], :'association_chain.id' => association_hash['id'])
       end
       
       #  undo :from => 1, :to => 5
@@ -134,10 +135,10 @@ module Mongoid::History
 
       def association_hash(node=self)
         # get all reflections of embedded_in association metadata
-        # and find the first association that matches _parent.
+        # and find the first association that matches _parent.        
         if node._parent
           meta = node.reflect_on_all_associations(:embedded_in).find do |meta|
-            node._parent.class.name == meta.class_name
+            node._parent == node.send(meta.key)
           end
 
           inverse = node._parent.reflect_on_association(meta.inverse)
@@ -146,7 +147,11 @@ module Mongoid::History
         # if root node has no meta, and should use class name instead
         name = meta ? meta.inverse.to_s : node.class.name
 
-        { 'name' => name, 'id' => node.id}
+        #get index if it's an array
+        index = node._parent.send(node.collection_name).size if node.respond_to? :_parent and node._parent
+        transaction_id = node.send(:transaction_id) if node.respond_to? :transaction_id
+
+        { 'name' => name, 'id' => node.id, 'transaction_id' => transaction_id, 'index' => index}
       end
 
       def modified_attributes_for_update
@@ -212,7 +217,8 @@ module Mongoid::History
         return unless track_history?
         current_version = (self.send(history_trackable_options[:version_field]) || 0 ) + 1
         self.send("#{history_trackable_options[:version_field]}=", current_version)
-        Mongoid::History.tracker_class.create!(history_tracker_attributes(:create).merge(:version => current_version, :action => "create", :trackable => self))
+        record = history_tracker_attributes(:create).merge(:version => current_version, :action => "create", :trackable => self)
+        Mongoid::History.tracker_class.create!(record) if record[:modified].size > 0
         clear_memoization
       end
 
