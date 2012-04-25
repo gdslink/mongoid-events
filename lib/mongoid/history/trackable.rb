@@ -185,13 +185,20 @@ module Mongoid::History
         end
       end
 
+      def current_user
+        controller = Thread.current[:mongoid_history_sweeper_controller]
+        if controller.respond_to?(Mongoid::History.current_user_method, true)
+          controller.send Mongoid::History.current_user_method
+        end
+      end
+      
       def history_tracker_attributes(method)
         return @history_tracker_attributes if @history_tracker_attributes
 
         @history_tracker_attributes = {
           :association_chain  => traverse_association_chain,
           :scope              => history_trackable_options[:scope],
-          :modifier        => send(history_trackable_options[:modifier_field])
+          :modifier        => current_user.send("#{Mongoid::History.current_user_field}")
         }
 
         original, modified = transform_changes(case method
