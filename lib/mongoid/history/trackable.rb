@@ -8,13 +8,12 @@ module Mongoid::History
         default_options = {
           :on                 =>  :all,
           :except             =>  [:created_at, :updated_at],
-          :modifier_field     =>  :modifier,
-          :transaction_field  =>  :transaction_id,
+          :modifier_field     =>  :edited_by,
           :version_field      =>  :version,
           :scope              =>  model_name,
           :track_create       =>  false,
           :track_update       =>  true,
-          :track_destroy      =>  false,
+          :track_destroy      =>  false
         }
 
         options = default_options.merge(options)
@@ -24,7 +23,7 @@ module Mongoid::History
         options[:except] = [options[:except]] unless options[:except].is_a? Array
         options[:except] << options[:version_field]
         options[:except] << "#{options[:modifier_field]}_id".to_sym
-        options[:except] += [:_id, :id]
+        options[:except] += [:_id, :id, :transaction_id]
         options[:except] = options[:except].map(&:to_s).flatten.compact.uniq
         options[:except].map(&:to_s)
 
@@ -37,6 +36,21 @@ module Mongoid::History
         field options[:version_field].to_sym, :type => Integer
         field options[:modifier_field].to_sym, :type => String
 
+
+        tracker_class_name = options[:tracker_class_name].to_s.classify + "Events"
+        tracker_collection_name = options[:tracker_class_name].to_s.underscore + "_events"
+        
+        create_tracker_class(tracker_class_name, tracker_collection_name)
+        
+        options[:tracker_class] = tracker_class_name.constantize   
+        
+        field :transaction_id, :type => String
+
+        #add a transaction id to the scoped document
+        if options[:scope] == self.name          
+          set_callback :save, :before, :update_transaction_id
+        end
+
         include MyInstanceMethods
         extend SingletonMethods
 
@@ -45,10 +59,64 @@ module Mongoid::History
 
         before_update :track_update if options[:track_update]
         before_create :track_create if options[:track_create]
-        before_destroy :track_destroy if options[:track_destroy]
+        before_destroy :track_destroy if options[:track_destroy]          
 
         Mongoid::History.trackable_class_options ||= {}
         Mongoid::History.trackable_class_options[model_name] = options
+      end
+
+      # validates that a class exists in the program namespace
+      # returne false if not class with the specified name could
+      # be found.
+      def find_class(class_name)
+        begin
+          klass = Module.const_get(class_name)
+          return (klass.is_a?(Class) ? klass : nil)
+        rescue NameError
+          return nil
+        end
+      end
+
+
+      def create_tracker_class(class_name, collection_name)
+        klass = find_class(class_name)
+
+        return klass if klass
+
+        history_tracker_class = find_class("HistoryTracker")
+
+        if !history_tracker_class
+          history_tracker_klass = Object.const_set("HistoryTracker", Class.new)
+
+          history_tracker_klass.instance_eval{
+            include Mongoid::History::Tracker          
+          }
+        end
+
+        klass = Object.const_set(class_name.gsub(" ",""), Class.new)
+
+        klass.instance_eval{
+          include Mongoid::Document
+          self.collection_name = collection_name
+
+          field :t, :type => DateTime
+
+          embeds_one :d, :class_name => "HistoryTracker"
+
+          before_save :update_time
+
+          if defined?(ActionController) and defined?(ActionController::Base)
+            ActionController::Base.class_eval do
+              around_filter Mongoid::History::UserLookup.instance
+            end
+          end     
+        }
+
+        klass.class_eval{
+          def update_time
+            self.t = Time.now
+          end     
+        }
       end
 
       def track_history?
@@ -67,37 +135,16 @@ module Mongoid::History
 
       def track_history_flag
         "mongoid_history_#{self.name.underscore}_trackable_enabled".to_sym
-      end
+      end      
     end
 
     module MyInstanceMethods
       def history_tracks
-        @history_tracks ||= Mongoid::History.tracker_class.where(:scope => history_trackable_options[:scope], :'association_chain.name' => association_hash['name'], :'association_chain.id' => association_hash['id'])
+        @history_tracks ||= history_trackable_options[:tracker_class].where(:scope => history_trackable_options[:scope], :'association_chain.name' => association_hash['name'], :'association_chain.id' => association_hash['id'])
       end
       
-      #  undo :from => 1, :to => 5
-      #  undo 4
-      #  undo :last => 10
-      def undo!(modifier, options_or_version=nil)
-        versions = get_versions_criteria(options_or_version).to_a
-        versions.sort!{|v1, v2| v2.version <=> v1.version}
-
-        versions.each do |v|
-          undo_attr = v.undo_attr(modifier)
-          self.attributes = v.undo_attr(modifier)
-        end
-        save!
-      end
-
-      def redo!(modifier, options_or_version=nil)
-        versions = get_versions_criteria(options_or_version).to_a
-        versions.sort!{|v1, v2| v1.version <=> v2.version}
-
-        versions.each do |v|
-          redo_attr = v.redo_attr(modifier)
-          self.attributes = redo_attr
-        end
-        save!
+      def update_transaction_id
+        Thread.current[:current_transaction_id] = self.transaction_id = UUIDTools::UUID.random_create.to_s
       end
 
     private
@@ -123,8 +170,12 @@ module Mongoid::History
         versions.desc(:version)
       end
 
+      def should_track_create?
+        track_history? && (Thread.current[:current_transaction_id] != self.send(:transaction_id) or history_trackable_options[:scope] == self.class.to_s)
+      end
+
       def should_track_update?
-        track_history? && !modified_attributes_for_update.blank?
+        track_history? && !modified_attributes_for_update.blank? && (Thread.current[:current_transaction_id] != self.send(:transaction_id) or history_trackable_options[:scope] == self.class.to_s)
       end
 
       def traverse_association_chain(node=self)
@@ -134,18 +185,7 @@ module Mongoid::History
       end
 
       def association_hash(node=self)
-        # get all reflections of embedded_in association metadata
-        # and find the first association that matches _parent.        
-        if node._parent
-          meta = node.reflect_on_all_associations(:embedded_in).find do |meta|
-            node._parent == node.send(meta.key)
-          end
-
-          inverse = node._parent.reflect_on_association(meta.inverse)
-        end
-
-        # if root node has no meta, and should use class name instead
-        name = meta ? meta.inverse.to_s : node.class.name
+        name = node.class.name
 
         #get index if it's an array
         index = node._parent.send(node.collection_name).size if node.respond_to? :_parent and node._parent
@@ -186,7 +226,7 @@ module Mongoid::History
       end
 
       def current_user
-        controller = Thread.current[:mongoid_history_sweeper_controller]
+        controller = Thread.current[:mongoid_history_user_lookup_controller]
         if controller.respond_to?(Mongoid::History.current_user_method, true)
           controller.send Mongoid::History.current_user_method
         end
@@ -198,7 +238,7 @@ module Mongoid::History
         @history_tracker_attributes = {
           :association_chain  => traverse_association_chain,
           :scope              => history_trackable_options[:scope],
-          :modifier        => current_user.send("#{Mongoid::History.current_user_field}")
+          :edited_by          => current_user.send("#{Mongoid::History.current_user_field}")
         }
 
         original, modified = transform_changes(case method
@@ -208,7 +248,7 @@ module Mongoid::History
         end)
 
         @history_tracker_attributes[:original] = original
-        @history_tracker_attributes[:modified] = modified
+        @history_tracker_attributes[:data] = modified
         @history_tracker_attributes
       end
 
@@ -216,23 +256,25 @@ module Mongoid::History
         return unless should_track_update?
         current_version = (self.send(history_trackable_options[:version_field]) || 0 ) + 1
         self.send("#{history_trackable_options[:version_field]}=", current_version)
-        Mongoid::History.tracker_class.create!(history_tracker_attributes(:update).merge(:version => current_version, :action => "update", :trackable => self))
+        self.send(:transaction_id=, Thread.current[:current_transaction_id])
+        history_trackable_options[:tracker_class].create!(history_tracker_attributes(:update).merge(:version => current_version, :action => "update", :trackable => self))
         clear_memoization
       end
 
-      def track_create
-        return unless track_history?
+      def track_create                
+        return unless should_track_create?
         current_version = (self.send(history_trackable_options[:version_field]) || 0 ) + 1
         self.send("#{history_trackable_options[:version_field]}=", current_version)
+        self.send(:transaction_id=, Thread.current[:current_transaction_id])
         record = history_tracker_attributes(:create).merge(:version => current_version, :action => "create", :trackable => self)
-        Mongoid::History.tracker_class.create!(record) if record[:modified].size > 0
+        history_trackable_options[:tracker_class].create!(:d => record) if record[:data].size > 0
         clear_memoization
       end
 
       def track_destroy
         return unless track_history?
         current_version = (self.send(history_trackable_options[:version_field]) || 0 ) + 1
-        Mongoid::History.tracker_class.create!(history_tracker_attributes(:destroy).merge(:version => current_version, :action => "destroy", :trackable => self))
+        history_trackable_options[:tracker_class].create!(history_tracker_attributes(:destroy).merge(:version => current_version, :action => "destroy", :trackable => self))
         clear_memoization
       end
 

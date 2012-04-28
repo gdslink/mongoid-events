@@ -1,15 +1,11 @@
 module Mongoid::History
-  class Sweeper < Mongoid::Observer
+  class UserLookup < Mongoid::Observer
     def controller
-      Thread.current[:mongoid_history_sweeper_controller]
+      Thread.current[:mongoid_history_user_lookup_controller]
     end
 
     def controller=(value)
-      Thread.current[:mongoid_history_sweeper_controller] = value
-    end
-
-    def self.observed_classes
-      [Mongoid::History.tracker_class]
+      Thread.current[:mongoid_history_user_lookup_controller] = value
     end
 
     # Hook to ActionController::Base#around_filter.
