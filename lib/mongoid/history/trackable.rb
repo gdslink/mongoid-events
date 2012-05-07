@@ -8,7 +8,7 @@ module Mongoid::History
         default_options = {
           :on                 =>  :all,
           :except             =>  [:created_at, :updated_at],
-          :modifier_field     =>  :edited_by,
+          :modifier_field     =>  :modifier,
           :version_field      =>  :version,
           :scope              =>  model_name,
           :track_create       =>  false,
@@ -34,7 +34,7 @@ module Mongoid::History
         end
 
         field options[:version_field].to_sym, :type => Integer
-        field options[:modifier_field].to_sym, :type => String
+        field :edited_by, :type => String
 
 
         tracker_class_name = options[:tracker_class_name].to_s.classify + "Events"
@@ -123,13 +123,7 @@ module Mongoid::History
 
           embeds_one :d, :class_name => "HistoryTracker"
 
-          before_create :update_time
-
-          if defined?(ActionController) and defined?(ActionController::Base)
-            ActionController::Base.class_eval do
-              around_filter Mongoid::History::UserLookup.instance
-            end
-          end     
+          before_create :update_time 
         }
 
         klass.class_eval{
@@ -249,20 +243,16 @@ module Mongoid::History
         end
       end
 
-      def current_user
-        controller = Thread.current[:mongoid_history_user_lookup_controller]
-        if controller.respond_to?(Mongoid::History.current_user_method, true)
-          controller.send Mongoid::History.current_user_method
-        end
-      end
       
       def history_tracker_attributes(method)
+        p history_trackable_options
         return @history_tracker_attributes if @history_tracker_attributes
 
         @history_tracker_attributes = {
           :association_chain  => traverse_association_chain,
           :scope              => history_trackable_options[:scope],
-          :edited_by          => current_user.send("#{Mongoid::History.current_user_field}")
+          :edited_by          => send(history_trackable_options[:modifier_field])
+
         }
 
         original, modified = transform_changes(case method
