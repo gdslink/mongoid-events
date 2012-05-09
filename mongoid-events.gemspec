@@ -4,13 +4,13 @@
 # -*- encoding: utf-8 -*-
 
 Gem::Specification.new do |s|
-  s.name = "mongoid-history"
+  s.name = "mongoid-events"
   s.version = "0.2.2"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
-  s.authors = ["Aaron Qian", "Justin Grimes"]
+  s.authors = ["Aaron Qian", "Justin Grimes", "Jean-Dominique Morani"]
   s.date = "2012-04-05"
-  s.description = "In frustration of Mongoid::Versioning, I created this plugin for tracking historical changes for any document, including embedded ones. It achieves this by storing all history tracks in a single collection that you define. (See Usage for more details) Embedded documents are referenced by storing an association path, which is an array of document_name and document_id fields starting from the top most parent document and down to the embedded document that should track history.\n\n  This plugin implements multi-user undo, which allows users to undo any history change in any order. Undoing a document also creates a new history track. This is great for auditing and preventing vandalism, but it is probably not suitable for use cases such as a wiki."
+  s.description = "This gem will capture CRUD events from a Mongoid model and keep track of them in its own collection [model_name]_events. It's compatible with Square Cube for time series reporting."
   s.email = ["aq1018@gmail.com", "justin.mgrimes@gmail.com"]
   s.extra_rdoc_files = [
     "LICENSE.txt",
@@ -25,22 +25,21 @@ Gem::Specification.new do |s|
     "README.md",
     "Rakefile",
     "VERSION",
-    "lib/mongoid-history.rb",
-    "lib/mongoid/history.rb",
-    "lib/mongoid/history/sweeper.rb",
-    "lib/mongoid/history/trackable.rb",
-    "lib/mongoid/history/tracker.rb",
-    "mongoid-history.gemspec",
+    "lib/mongoid-events.rb",
+    "lib/mongoid/events.rb",
+    "lib/mongoid/events/trackable.rb",
+    "lib/mongoid/events/tracker.rb",
+    "mongoid-events.gemspec",
     "spec/integration/integration_spec.rb",
     "spec/spec_helper.rb",
     "spec/trackable_spec.rb",
     "spec/tracker_spec.rb"
   ]
-  s.homepage = "http://github.com/aq1018/mongoid-history"
+  s.homepage = "http://github.com/aq1018/mongoid-events"
   s.licenses = ["MIT"]
   s.require_paths = ["lib"]
   s.rubygems_version = "1.8.15"
-  s.summary = "history tracking, auditing, undo, redo for mongoid"
+  s.summary = "cube, reporting, time series, events tracking, auditing, undo, redo for mongoid"
 
   if s.respond_to? :specification_version then
     s.specification_version = 3

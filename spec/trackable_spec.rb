@@ -1,33 +1,33 @@
 require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
 
-describe Mongoid::History::Trackable do
+describe Mongoid::Events::Trackable do
   before :each do
     class MyModel
       include Mongoid::Document
-      include Mongoid::History::Trackable
+      include Mongoid::Events::Trackable
     end
   end
 
   after :each do
-    Mongoid::History.trackable_class_options = nil
+    Mongoid::Events.trackable_class_options = nil
   end
 
-  it "should have #track_history" do
-    MyModel.should respond_to :track_history
+  it "should have #track_events" do
+    MyModel.should respond_to :track_events
   end
 
-  it "should append trackable_class_options ONLY when #track_history is called" do
-    Mongoid::History.trackable_class_options.should be_blank
-    MyModel.track_history
-    Mongoid::History.trackable_class_options.keys.should == [:my_model]
+  it "should append trackable_class_options ONLY when #track_events is called" do
+    Mongoid::Events.trackable_class_options.should be_blank
+    MyModel.track_events
+    Mongoid::Events.trackable_class_options.keys.should == [:my_model]
   end
 
-  describe "#track_history" do
+  describe "#track_events" do
     before :each do
       class MyModel
         include Mongoid::Document
-        include Mongoid::History::Trackable
-        track_history
+        include Mongoid::Events::Trackable
+        track_events
       end
 
       @expected_option = {
@@ -43,11 +43,11 @@ describe Mongoid::History::Trackable do
     end
 
     after :each do
-      Mongoid::History.trackable_class_options = nil
+      Mongoid::Events.trackable_class_options = nil
     end
 
     it "should have default options" do
-      Mongoid::History.trackable_class_options[:my_model].should == @expected_option
+      Mongoid::Events.trackable_class_options[:my_model].should == @expected_option
     end
 
     it "should define callback function #track_update" do
@@ -62,19 +62,19 @@ describe Mongoid::History::Trackable do
       MyModel.new.private_methods.collect(&:to_sym).should include(:track_destroy)
     end
 
-    it "should define #history_trackable_options" do
-      MyModel.history_trackable_options.should == @expected_option
+    it "should define #events_trackable_options" do
+      MyModel.events_trackable_options.should == @expected_option
     end
 
-    context "track_history" do
+    context "track_events" do
 
       it "should be enabled on the current thread" do
-        MyModel.new.track_history?.should == true
+        MyModel.new.track_events?.should == true
       end
 
       it "should be disabled within disable_tracking" do
         MyModel.disable_tracking do
-          MyModel.new.track_history?.should == false
+          MyModel.new.track_events?.should == false
         end
       end
 
@@ -85,18 +85,18 @@ describe Mongoid::History::Trackable do
           end
         rescue
         end
-        MyModel.new.track_history?.should == true
+        MyModel.new.track_events?.should == true
       end
 
       it "should be disabled only for the class that calls disable_tracking" do
         class MyModel2
           include Mongoid::Document
-          include Mongoid::History::Trackable
-          track_history
+          include Mongoid::Events::Trackable
+          track_events
         end
 
         MyModel.disable_tracking do
-          MyModel2.new.track_history?.should == true
+          MyModel2.new.track_events?.should == true
         end
       end
 

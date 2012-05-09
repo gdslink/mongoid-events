@@ -3,7 +3,7 @@ $LOAD_PATH.unshift(File.dirname(__FILE__))
 
 require 'rspec'
 require 'mongoid'
-require 'mongoid-history'
+require 'mongoid-events'
 require 'database_cleaner'
 
 Dir["#{File.dirname(__FILE__)}/support/**/*.rb"].each {|f| require f}
@@ -19,5 +19,5 @@ RSpec.configure do |config|
 end
 
 Mongoid.configure do |config|
-  config.master = Mongo::Connection.new.db("mongoid-history")
+  config.master = Mongo::Connection.new.db("mongoid-events")
 end

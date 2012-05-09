@@ -1,4 +1,4 @@
-module Mongoid::History
+module Mongoid::Events
   module Tracker
     extend ActiveSupport::Concern
 

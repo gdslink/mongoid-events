@@ -1,37 +1,17 @@
-mongoid-history
+mongoid-events
 ===============
 
-[![Build Status](https://secure.travis-ci.org/aq1018/mongoid-history.png?branch=master)](http://travis-ci.org/aq1018/mongoid-history) [![Dependency Status](https://gemnasium.com/aq1018/mongoid-history.png?travis)](https://gemnasium.com/aq1018/mongoid-history)
+This gem was originally created by Aaron Qian and named mongoid-history.
 
+Here is its original description :
 
 In frustration of Mongoid::Versioning, I created this plugin for tracking historical changes for any document, including embedded ones. It achieves this by storing all history tracks in a single collection that you define. (See Usage for more details) Embedded documents are referenced by storing an association path, which is an array of document_name and document_id fields starting from the top most parent document and down to the embedded document that should track history.
 
 This plugin implements multi-user undo, which allows users to undo any history change in any order. Undoing a document also creates a new history track. This is great for auditing and preventing vandalism, but it is probably not suitable for use cases such as a wiki.
 
-Note
-----
 
-**Please don't use 0.1.8 and 0.2.0.**
+This gem has been modified quite heavily to capture CRUD events from a Mongoid model and keep track of them in its own collection [model_name]_events. It's compatible with Square Cube for time series reporting.
 
-They won't work in Rails because there was an error in the sweeper that causes history tracker creation to fail. Upgrade to version 0.2.1 instead as it is able to track history on `embeds_one` documents correctly.
-
-**Refactor in progress**
-
-If you feel brave, you can look at the `refactor` branch and get a feel of what's coming. As I stated many times before, this gem was originally hacked up in one evening, and got patched many times by various fellow users. Thus the code has become pretty unmanagable over time.  The `refactor` branch tries repay this technical debt by breaking things down into smaller class and implement better tests. Stay tuned! :D
-
-Upgrading from mongoid-history-0.1.x to >= 0.2
-------------------------------------------------
-
-If you are upgrade from 0.1.x to version 0.2.x, you need to run the following code **before** you start to use the 0.2.x. This is due to changes in `Mongoid::History::Tracker`'s `association_chain` field.
-
-```ruby
-Mongoid::History.tracker_class.all.each do |tracker|
-  tracker.association_chain[1..-1].each do |node|
-    node['name'] = node['name'].tableize
-  end
-  tracker.save!
-end
-```
 
 Install
 -------
@@ -39,7 +19,7 @@ Install
 Currently this gem supports ruby 1.9.x only. ruby 1.8.7, ree and rubinus are not working right now.
 
 ```
-gem install mongoid-history
+gem install mongoid-events
 ```
 
 Rails 3
@@ -48,22 +28,22 @@ Rails 3
 In your Gemfile:
 
 ```ruby
-gem 'mongoid-history'
+gem 'mongoid-events'
 ```
 
 Usage
 -----
 
-Here is a quick example on how to use this plugin. For more details, please look at spec/integration/integration_spec.rb. It offers more detailed examples on how to use `Mongoid::History`.
+Here is a quick example on how to use this plugin. For more details, please look at spec/integration/integration_spec.rb. It offers more detailed examples on how to use `Mongoid::Even`.
 
-**Create a History Tracker**
+**Create a Event Tracker**
 
-Create a new class to track histories. All histories are stored in this tracker. The name of the class can be anything you like. The only requirement is that it includes `Mongoid::History::Tracker`
+Create a new class to track events. All events are stored in this tracker. The name of the class can be anything you like. The only requirement is that it includes `Mongoid::Event::Tracker`
 
 ```ruby
-# app/models/history_tracker.rb
-class HistoryTracker
-  include Mongoid::History::Tracker
+# app/models/event_tracker.rb
+class EventTracker
+  include Mongoid::Event::Tracker
 end
 ```
 
@@ -75,10 +55,10 @@ You should manually set the tracker class name to make sure your tracker can be 
 Here is an example of setting the tracker class name using a rails initializer
 
 ```ruby
-# config/initializers/mongoid-history.rb
-# initializer for mongoid-history
-# assuming HistoryTracker is your tracker class
-Mongoid::History.tracker_class_name = :history_tracker
+# config/initializers/mongoid-events.rb
+# initializer for mongoid-events
+# assuming EventTracker is your tracker class
+Mongoid::Event.tracker_class_name = :event_tracker
 ```
 
 **Set `#current_user` method name**
@@ -88,20 +68,20 @@ You can set name of method which returns currently logged in user if you don't w
 Here is an example of setting the current_user_method using a rails initializer
 
 ```ruby
-# config/initializers/mongoid-history.rb
-# initializer for mongoid-history
+# config/initializers/mongoid-events.rb
+# initializer for mongoid-events
 # assuming you're using devise/authlogic
-Mongoid::History.current_user_method = :current_user
+Mongoid::Event.current_user_method = :current_user
 ```
 
-When current_user_method is set mongoid-history call this method on each update and set it as modifier
+When current_user_method is set mongoid-events call this method on each update and set it as modifier
 
 ```ruby
 # Assume that current_user return #<User _id: 1>
 post = Post.first
 post.update_attributes(:title => 'New title')
 
-post.history_tracks.last.modifier #=> #<User _id: 1>
+post.event_tracks.last.modifier #=> #<User _id: 1>
 ```
 
 ***Create Trackable classes and objects***
@@ -111,17 +91,17 @@ class Post
   include Mongoid::Document
   include Mongoid::Timestamps
 
-  # History tracking all Post Documents
-  # Note: Tracking will not work until #track_history is invoked
-  include Mongoid::History::Trackable
+  # Event tracking all Post Documents
+  # Note: Tracking will not work until #track_event is invoked
+  include Mongoid::Event::Trackable
 
   field           :title
   field           :body
   field           :rating
   embeds_many     :comments
 
-  # Telling Mongoid::History how you want to track
-  track_history   :on => [:title, :body],       # I want to track title and body fields only. Default is :all
+  # Telling Mongoid::Event how you want to track
+  track_event   :on => [:title, :body],       # I want to track title and body fields only. Default is :all
                   :modifier_field => :modifier, # Adds "referened_in :modifier" to track who made the change. Default is :modifier
                   :version_field => :version,   # Adds "field :version, :type => Integer" to track current version. Default is :version
                   :track_create   =>  false,    # Do you want to track document creation? Default is false
@@ -134,7 +114,7 @@ class Comment
   include Mongoid::Timestamps
 
   # Declare that we want to track comments
-  include Mongoid::History::Trackable
+  include Mongoid::Event::Trackable
 
   field             :title
   field             :body
@@ -142,7 +122,7 @@ class Comment
 
   # Track title and body for all comments, scope it to post (the parent)
   # Also track creation and destruction
-  track_history     :on => [:title, :body], :scope => :post, :track_create => true, :track_destroy => true
+  track_event     :on => [:title, :body], :scope => :post, :track_create => true, :track_destroy => true
 end
 
 # The modifier can be specified as well
@@ -156,12 +136,12 @@ end
 user = User.create(:name => "Aaron")
 post = Post.create(:title => "Test", :body => "Post", :modifier => user)
 comment = post.comments.create(:title => "test", :body => "comment", :modifier => user)
-comment.history_tracks.count # should be 1
+comment.event_tracks.count # should be 1
 
 comment.update_attributes(:title => "Test 2")
-comment.history_tracks.count # should be 2
+comment.event_tracks.count # should be 2
 
-track = comment.history_tracks.last
+track = comment.event_tracks.last
 
 track.undo! user # comment title should be "Test"
 
@@ -185,16 +165,13 @@ comment.redo! user, :last => 3
 # delete post
 post.destroy
 
-# undelete post
-post.undo! user
-
 # disable tracking for comments within a block
 Comment.disable_tracking do
   comment.update_attributes(:title => "Test 3")
 end
 ```
 
-Contributing to mongoid-history
+Contributing to mongoid-events
 -------------------------------
 
 * Check out the latest master to make sure the feature hasn't been implemented or the bug hasn't been fixed yet
@@ -203,7 +180,7 @@ Contributing to mongoid-history
 * Start a feature/bugfix branch
 * Commit and push until you are happy with your contribution
 * Make sure to add tests for it. This is important so I don't break it in a future version unintentionally.
-* Please try not to mess with the Rakefile, version, or history. If you want to have your own version, or is otherwise necessary, that is fine, but please isolate to its own commit so I can cherry-pick around it.
+* Please try not to mess with the Rakefile, version, or event. If you want to have your own version, or is otherwise necessary, that is fine, but please isolate to its own commit so I can cherry-pick around it.
 
 Copyright
 ---------

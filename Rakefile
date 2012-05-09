@@ -12,15 +12,13 @@ require 'rake'
 require 'jeweler'
 Jeweler::Tasks.new do |gem|
   # gem is a Gem::Specification... see http://docs.rubygems.org/read/chapter/20 for more options
-  gem.name = "mongoid-history"
-  gem.homepage = "http://github.com/aq1018/mongoid-history"
+  gem.name = "mongoid-events"
+  gem.homepage = "http://github.com/gdslink/mongoid-events"
   gem.license = "MIT"
-  gem.summary = %Q{ history tracking, auditing, undo, redo for mongoid}
-  gem.description = %Q{In frustration of Mongoid::Versioning, I created this plugin for tracking historical changes for any document, including embedded ones. It achieves this by storing all history tracks in a single collection that you define. (See Usage for more details) Embedded documents are referenced by storing an association path, which is an array of document_name and document_id fields starting from the top most parent document and down to the embedded document that should track history.
-
-  This plugin implements multi-user undo, which allows users to undo any history change in any order. Undoing a document also creates a new history track. This is great for auditing and preventing vandalism, but it is probably not suitable for use cases such as a wiki.}
-  gem.email = ["aq1018@gmail.com", "justin.mgrimes@gmail.com"]
-  gem.authors = ["Aaron Qian", "Justin Grimes"]
+  gem.summary = %Q{ cube, reporting, time series, event tracking, auditing, undo, redo for mongoid}
+  gem.description = %Q{This gem will capture CRUD events from a Mongoid model and keep track of them in its own collection [model_name]_events. It's compatible with Square Cube for time series reporting."}
+  gem.email = ["aq1018@gmail.com", "justin.mgrimes@gmail.com", "jdmorani@gdslink.com"]
+  gem.authors = ["Aaron Qian", "Justin Grimes", "Jean-Dominique Morani"]
 end
 Jeweler::RubygemsDotOrgTasks.new
 
