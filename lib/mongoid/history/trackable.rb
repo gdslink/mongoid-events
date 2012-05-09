@@ -13,7 +13,8 @@ module Mongoid::History
           :scope              =>  model_name,
           :track_create       =>  false,
           :track_update       =>  true,
-          :track_destroy      =>  false
+          :track_destroy      =>  false,
+          :periodic_pruning   =>  false,
         }
 
         options = default_options.merge(options)
@@ -66,9 +67,11 @@ module Mongoid::History
         before_update :track_update if options[:track_update]
         before_create :track_create if options[:track_create]
         before_destroy :destroy_events if options[:destroy_events]          
-
+        
         Mongoid::History.trackable_class_options ||= {}
         Mongoid::History.trackable_class_options[model_name] = options
+
+        start_pruning_thread(options[:tracker_class]) if options[:periodic_pruning]
       end
 
       # validates that a class exists in the program namespace
@@ -130,7 +133,22 @@ module Mongoid::History
           def update_time
             self.t = Time.now
           end     
-        }
+        }        
+      end
+
+
+      def start_pruning_thread(tracker_class)
+        Thread.new(tracker_class){
+          begin        
+            while(1) do
+              records = tracker_class.where('d.invalidate_time' => {'$lt' => 1.hour.to_i * 1000}, :t => {'$lt' => Time.now - 1.day})
+              records.destroy_all
+              sleep(1.day.to_i)
+            end
+          rescue Exception => e
+            puts e
+          end
+        }        
       end
 
       def track_history?
