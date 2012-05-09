@@ -23,7 +23,7 @@ module Mongoid::History
         # manually ensure _id, id, version will not be tracked in history
         options[:except] = [options[:except]] unless options[:except].is_a? Array
         options[:except] << options[:version_field]
-        options[:except] << "#{options[:modifier_field]}_id".to_sym
+        options[:except] << "#{options[:modifier_field]}".to_sym
         options[:except] += [:_id, :id, :transaction_id]
         options[:except] = options[:except].map(&:to_s).flatten.compact.uniq
         options[:except].map(&:to_s)
@@ -263,7 +263,6 @@ module Mongoid::History
 
       
       def history_tracker_attributes(method)
-        p history_trackable_options
         return @history_tracker_attributes if @history_tracker_attributes
 
         @history_tracker_attributes = {
@@ -281,7 +280,7 @@ module Mongoid::History
 
         @history_tracker_attributes[:original] = original
         @history_tracker_attributes[:modified] = modified
-        @history_tracker_attributes[:data] = attributes
+        @history_tracker_attributes[:data] = attributes.reject{ |k, v| v.is_a?(Hash)}
         @history_tracker_attributes
       end
 
@@ -297,7 +296,8 @@ module Mongoid::History
       def invalidate_old_records
         records = history_trackable_options[:tracker_class].where('d.record_id' =>  @history_tracker_attributes[:association_chain][0]['id'].to_s).and('d.association_path' => association_path)
         records.each do |r|
-          r.update_attribute('d.invalidate', (Time.now.to_i - r.t.to_i) * 1000)
+          invalidate_time = (Time.now.to_i - r.t.to_i) * 1000
+          r.update_attribute('d.invalidate', invalidate_time)
         end
       end
 
