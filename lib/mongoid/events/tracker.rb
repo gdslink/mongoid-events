@@ -17,7 +17,7 @@ module Mongoid::Events
       field       :edited_by,               :type => String
       field       :record_id,               :type => String
       field       :association_path,        :type => String
-      field       :invalidate,              :type => Integer,   :default => -1
+      field       :invalidate,              :type => Integer,   :default => 99999999999999
 
       index       :record_id
       index       :association_path
