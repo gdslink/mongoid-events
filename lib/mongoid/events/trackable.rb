@@ -176,7 +176,7 @@ module Mongoid::Events
       end
       
       def update_transaction_id
-        Thread.current[:current_transaction_id] = self.transaction_id = UUID.generate(:compact)
+        Thread.current[:current_transaction_id] = self.transaction_id = SecureRandom.uuid
       end
 
     private
