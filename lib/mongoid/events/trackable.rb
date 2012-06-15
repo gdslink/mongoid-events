@@ -172,7 +172,7 @@ module Mongoid::Events
 
     module MyInstanceMethods
       def events_tracks
-        @events_tracks ||= events_trackable_options[:tracker_class].where(:scope => events_trackable_options[:scope], :'association_chain.name' => association_hash['name'], :'association_chain.id' => association_hash['id'])
+        @events_tracks ||= events_trackable_options[:tracker_class].where('d.scope' => events_trackable_options[:scope], 'd.association_chain.name' => association_hash['name'], :'d.association_chain.id' => association_hash['id'])
       end
       
       def update_transaction_id
