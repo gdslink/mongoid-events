@@ -141,7 +141,7 @@ module Mongoid::Events
         Thread.new(tracker_class){
           begin        
             while(1) do
-              records = tracker_class.where('d.invalidate_time' => {'$lt' => 1.hour.to_i * 1000}, :t => {'$lt' => Time.now - 1.day})
+              records = tracker_class.where('d.invalidate' => {'$lt' => 1.hour.to_i * 1000}, :t => {'$lt' => Time.now - 1.day})
               records.destroy_all
               sleep(1.day.to_i)
             end
