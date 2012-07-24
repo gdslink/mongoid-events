@@ -9,7 +9,6 @@ module Mongoid::Events
           :on                 =>  :all,
           :except             =>  [:created_at, :updated_at],
           :modifier_field     =>  :modifier,
-          :version_field      =>  :version,
           :scope              =>  model_name,
           :track_create       =>  false,
           :track_update       =>  true,
@@ -22,7 +21,6 @@ module Mongoid::Events
         # normalize except fields
         # manually ensure _id, id, version will not be tracked in event
         options[:except] = [options[:except]] unless options[:except].is_a? Array
-        options[:except] << options[:version_field]
         options[:except] << "#{options[:modifier_field]}".to_sym
         options[:except] += [:_id, :id, :transaction_id]
         options[:except] = options[:except].map(&:to_s).flatten.compact.uniq
@@ -34,7 +32,6 @@ module Mongoid::Events
           options[:on] = options[:on].map(&:to_s).flatten.uniq
         end
 
-        field options[:version_field].to_sym, :type => Integer
         field :edited_by, :type => String
 
 
@@ -96,7 +93,7 @@ module Mongoid::Events
 
         klass.instance_eval{
           include Mongoid::Document
-          self.collection_name = collection_name
+          store_in collection: collection_name, database: "case_center_production"
         }
 
       end
@@ -120,7 +117,7 @@ module Mongoid::Events
 
         klass.instance_eval{
           include Mongoid::Document
-          self.collection_name = collection_name
+          store_in collection: collection_name, database: "case_center_production"
 
           field :t, :type => DateTime
 
@@ -180,27 +177,6 @@ module Mongoid::Events
       end
 
     private
-      def get_versions_criteria(options_or_version)
-        if options_or_version.is_a? Hash
-          options = options_or_version
-          if options[:from] && options[:to]
-            lower = options[:from] >= options[:to] ? options[:to] : options[:from]
-            upper = options[:from] <  options[:to] ? options[:to] : options[:from]
-            versions = events_tracks.where( :version.in => (lower .. upper).to_a )
-          elsif options[:last]
-            versions = events_tracks.limit( options[:last] )
-          else
-            raise "Invalid options, please specify (:from / :to) keys or :last key."
-          end
-        else
-          options_or_version = options_or_version.to_a if options_or_version.is_a?(Range)
-          version_field_name = events_trackable_options[:version_field]
-          version = options_or_version || self.attributes[version_field_name] || self.attributes[version_field_name.to_s]
-          version = [ version ].flatten
-          versions = events_tracks.where(:version.in => version)
-        end
-        versions.desc(:version)
-      end
 
       def should_track_create?
         track_events? && (Thread.current[:current_transaction_id] != self.send(:transaction_id) or events_trackable_options[:scope] == self.class.to_s)
@@ -303,10 +279,8 @@ module Mongoid::Events
 
       def track_update
         return unless should_track_update?
-        current_version = (self.send(events_trackable_options[:version_field]) || 0 ) + 1
-        self.send("#{events_trackable_options[:version_field]}=", current_version)
         self.send(:transaction_id=, Thread.current[:current_transaction_id])
-        record = events_tracker_attributes(:update).merge(:version => current_version, :action => "update", :trackable => self, :association_path => association_path, :record_id => @events_tracker_attributes[:association_chain][0]['id'].to_s)
+        record = events_tracker_attributes(:update).merge(:action => "update", :trackable => self, :association_path => association_path, :record_id => @events_tracker_attributes[:association_chain][0]['id'].to_s)
         invalidate_old_records
         events_trackable_options[:metric_class].destroy_all
         events_trackable_options[:tracker_class].create!(:d => record)        
@@ -315,10 +289,8 @@ module Mongoid::Events
 
       def track_create                
         return unless should_track_create?
-        current_version = (self.send(events_trackable_options[:version_field]) || 0 ) + 1
-        self.send("#{events_trackable_options[:version_field]}=", current_version)
         self.send(:transaction_id=, Thread.current[:current_transaction_id])
-        record = events_tracker_attributes(:create).merge(:version => current_version, :action => "create", :trackable => self, :association_path => association_path, :record_id =>  @events_tracker_attributes[:association_chain][0]['id'].to_s)
+        record = events_tracker_attributes(:create).merge(:action => "create", :trackable => self, :association_path => association_path, :record_id =>  @events_tracker_attributes[:association_chain][0]['id'].to_s)
         events_trackable_options[:metric_class].destroy_all
         events_trackable_options[:tracker_class].create!(:d => record) if record[:modified].size > 0
         clear_memoization

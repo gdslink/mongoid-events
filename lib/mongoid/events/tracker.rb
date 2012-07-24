@@ -11,7 +11,6 @@ module Mongoid::Events
       field       :data,                    :type => Hash
       field       :modified,                :type => Hash
       field       :original,                :type => Hash
-      field       :version,                 :type => Integer
       field       :action,                  :type => String
       field       :scope,                   :type => String
       field       :edited_by,               :type => String
@@ -19,9 +18,9 @@ module Mongoid::Events
       field       :association_path,        :type => String
       field       :invalidate,              :type => Integer,   :default => 99999999999999
 
-      index       :record_id
-      index       :association_path
-      index       :invalidate
+      index({ record_id: 1 }, { unique: true, name: "record_id" })
+      index({ association_path: 1 }, { unique: true, name: "association_path" })
+      index({ invalidate: 1 }, { unique: true, name: "invalidate" })
     end
 
     def trackable_root
