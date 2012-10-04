@@ -43,7 +43,7 @@ module Mongoid::Events
 
         create_tracker_class(tracker_class_name, tracker_collection_name)
         create_metric_class(metric_class_name, metric_collection_name)
-        
+
         options[:tracker_class] = tracker_class_name.constantize
 
         options[:metric_class] = metric_class_name.constantize
@@ -93,7 +93,7 @@ module Mongoid::Events
 
         klass.instance_eval{
           include Mongoid::Document
-          store_in collection: collection_name, database: "case_center_production"
+          store_in collection: collection_name, database: self.database_name
         }
 
       end
@@ -117,7 +117,7 @@ module Mongoid::Events
 
         klass.instance_eval{
           include Mongoid::Document
-          store_in collection: collection_name, database: "case_center_production"
+          store_in collection: collection_name, database: self.database_name
 
           field :t, :type => DateTime
 
