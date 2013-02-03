@@ -6,14 +6,15 @@ module Mongoid::Events
       def track_events(options={})
         model_name = self.name.tableize.singularize.to_sym
         default_options = {
-          :on                 =>  :all,
-          :except             =>  [:created_at, :updated_at],
-          :modifier_field     =>  :modifier,
-          :scope              =>  model_name,
-          :track_create       =>  false,
-          :track_update       =>  true,
-          :track_destroy      =>  false,
-          :periodic_pruning   =>  false,
+          :on                   =>  :all,
+          :except               =>  [:created_at, :updated_at],
+          :modifier_field       =>  [:edited_by],
+          :modifier_src_table   =>  :system,
+          :scope                =>  model_name,
+          :track_create         =>  false,
+          :track_update         =>  true,
+          :track_destroy        =>  false,
+          :periodic_pruning     =>  false,
         }
 
         options = default_options.merge(options)
@@ -21,7 +22,7 @@ module Mongoid::Events
         # normalize except fields
         # manually ensure _id, id, version will not be tracked in event
         options[:except] = [options[:except]] unless options[:except].is_a? Array
-        options[:except] << "#{options[:modifier_field]}".to_sym
+        options[:except] += options[:modifier_field]
         options[:except] += [:_id, :id, :transaction_id]
         options[:except] = options[:except].map(&:to_s).flatten.compact.uniq
         options[:except].map(&:to_s)
@@ -32,7 +33,10 @@ module Mongoid::Events
           options[:on] = options[:on].map(&:to_s).flatten.uniq
         end
 
-        field :edited_by, :type => String
+
+        options[:modifier_field].each do |field|
+          field field
+        end
 
 
         tracker_class_name = options[:tracker_class_name].to_s.classify + "Events"
@@ -41,7 +45,7 @@ module Mongoid::Events
         metric_class_name = options[:tracker_class_name].to_s.classify + "Metrics"
         metric_collection_name = options[:tracker_class_name].to_s.underscore + "_metrics"
 
-        create_tracker_class(tracker_class_name, tracker_collection_name)
+        create_tracker_class(tracker_class_name, tracker_collection_name, options[:modifier_field])
         create_metric_class(metric_class_name, metric_collection_name)
 
         options[:tracker_class] = tracker_class_name.constantize
@@ -98,7 +102,7 @@ module Mongoid::Events
 
       end
 
-      def create_tracker_class(class_name, collection_name)
+      def create_tracker_class(class_name, collection_name, modifier_fields)
         klass = find_class(class_name)
 
         return klass if klass
@@ -109,7 +113,13 @@ module Mongoid::Events
           events_tracker_klass = Object.const_set("EventsTracker", Class.new)
 
           events_tracker_klass.instance_eval{
-            include Mongoid::Events::Tracker          
+            include Mongoid::Events::Tracker
+
+
+            modifier_fields.each do |f|
+              field f
+            end
+
           }
         end
 
@@ -190,6 +200,7 @@ module Mongoid::Events
         track_events? && self._parent == nil
       end
 
+
       def traverse_association_chain(node=self)
         list = node._parent ? traverse_association_chain(node._parent) : []
         list << association_hash(node)
@@ -244,9 +255,11 @@ module Mongoid::Events
         @events_tracker_attributes = {
           :association_chain  => traverse_association_chain,
           :scope              => events_trackable_options[:scope],
-          :edited_by          => send(events_trackable_options[:modifier_field])
-
         }
+
+        events_trackable_options[:modifier_field].each do |field|
+          @events_tracker_attributes.merge!(field => instance_eval("#{events_trackable_options[:modifier_src_table].to_s}.#{field}"))
+        end
 
         original, modified = transform_changes(case method
           when :destroy then modified_attributes_for_destroy
@@ -283,7 +296,7 @@ module Mongoid::Events
         record = events_tracker_attributes(:update).merge(:action => "update", :trackable => self, :association_path => association_path, :record_id => @events_tracker_attributes[:association_chain][0]['id'].to_s)
         invalidate_old_records
         events_trackable_options[:metric_class].destroy_all
-        events_trackable_options[:tracker_class].create!(:d => record)        
+        events_trackable_options[:tracker_class].create!(:d => record) if record[:modified].size > 0
         clear_memoization
       end
 
@@ -292,7 +305,7 @@ module Mongoid::Events
         self.send(:transaction_id=, Thread.current[:current_transaction_id])
         record = events_tracker_attributes(:create).merge(:action => "create", :trackable => self, :association_path => association_path, :record_id =>  @events_tracker_attributes[:association_chain][0]['id'].to_s)
         events_trackable_options[:metric_class].destroy_all
-        events_trackable_options[:tracker_class].create!(:d => record) if record[:modified].size > 0
+        events_trackable_options[:tracker_class].create!(:d => record)
         clear_memoization
       end
 

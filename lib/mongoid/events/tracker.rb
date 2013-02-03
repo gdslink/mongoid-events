@@ -13,7 +13,6 @@ module Mongoid::Events
       field       :original,                :type => Hash
       field       :action,                  :type => String
       field       :scope,                   :type => String
-      field       :edited_by,               :type => String
       field       :record_id,               :type => String
       field       :association_path,        :type => String
       field       :invalidate,              :type => Integer,   :default => 99999999999999
