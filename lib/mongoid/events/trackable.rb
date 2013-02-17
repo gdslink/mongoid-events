@@ -208,7 +208,7 @@ module Mongoid::Events
       end
 
       def association_hash(node=self)
-        name = node.class.name
+        name = node.collection_name
 
         #get index if it's an array
         index = node._parent.send(node.collection_name).size if node.respond_to? :_parent and node._parent and node._parent.send(node.collection_name).respond_to? :size
@@ -285,7 +285,7 @@ module Mongoid::Events
 
       def association_path
         path = ''
-        @events_tracker_attributes[:association_chain].each do |a|
+        @events_tracker_attributes[:association_chain][1..-1].each do |a|
           path += '.' if not path.empty?
           path += "#{a['name']}"
         end
