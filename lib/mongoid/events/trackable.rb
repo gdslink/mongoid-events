@@ -148,7 +148,7 @@ module Mongoid::Events
         Thread.new(tracker_class){
           begin
             while(1) do
-              records = tracker_class.where('d.invalidate' => {'$lt' => 1.hour.to_i * 1000}, :t => {'$lt' => Time.now - 1.day})
+              records = tracker_class.only(:_id).where('d.invalidate' => {'$lt' => 1.hour.to_i * 1000}, :t => {'$lt' => Time.now - 1.day})
               records.destroy_all
               sleep(1.day.to_i)
             end
@@ -293,7 +293,7 @@ module Mongoid::Events
       end
 
       def invalidate_old_records
-        records = events_trackable_options[:tracker_class].where('d.record_id' =>  @events_tracker_attributes[:association_chain][0]['id'].to_s).and('d.association_path' => association_path)
+        records = events_trackable_options[:tracker_class].only(:_id).where('d.record_id' =>  @events_tracker_attributes[:association_chain][0]['id'].to_s).and('d.association_path' => association_path)
         records.each do |r|
           invalidate_time = (Time.now.to_i - r.t.to_i) * 1000
           r.update_attribute('d.invalidate', invalidate_time)
@@ -322,7 +322,7 @@ module Mongoid::Events
       def destroy_events
         return unless should_track_destroy?
         events_trackable_options[:metric_class].destroy_all
-        records = events_trackable_options[:tracker_class].where('d.record_id' => self._id)
+        records = events_trackable_options[:tracker_class].only(:_id).where('d.record_id' => self._id)
         records.destroy_all
         clear_memoization
       end
