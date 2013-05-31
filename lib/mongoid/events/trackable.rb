@@ -72,7 +72,19 @@ module Mongoid::Events
         Mongoid::Events.trackable_class_options ||= {}
         Mongoid::Events.trackable_class_options[model_name] = options
 
+
+        @indexes = options[:tracker_class].collection.indexes.map { |k, v| k }
+
+        options[:tracker_class].collection.indexes.create({ :'d.record_id' => 1 }, {:background => true, :name => "record_id" }) if not indexes_include?("record_id")
+        options[:tracker_class].collection.indexes.create({ :'d.association_path' => 1 }, {:background => true, :name  => "association_path" }) if not indexes_include?("association_path")
+        options[:tracker_class].collection.indexes.create({ :'d.invalidate' => 1 }, {:background => true, :name => "invalidate" }) if not indexes_include?("invalidate")
+
+
         start_pruning_thread(options[:tracker_class]) if options[:periodic_pruning]
+      end
+
+      def indexes_include?(name)
+        @indexes.map { |i| i['name'] }.include?(name)
       end
 
       # validates that a class exists in the program namespace
@@ -293,7 +305,7 @@ module Mongoid::Events
       end
 
       def invalidate_old_records
-        records = events_trackable_options[:tracker_class].only(:_id).where('d.record_id' =>  @events_tracker_attributes[:association_chain][0]['id'].to_s).and('d.association_path' => association_path)
+        records = events_trackable_options[:tracker_class].only([:_id, :'d.invalidate']).where('d.record_id' =>  @events_tracker_attributes[:association_chain][0]['id'].to_s).and('d.association_path' => association_path)
         records.each do |r|
           invalidate_time = (Time.now.to_i - r.t.to_i) * 1000
           r.update_attribute('d.invalidate', invalidate_time)
