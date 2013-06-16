@@ -195,7 +195,7 @@ module Mongoid::Events
       end
 
       def update_transaction_id
-        Thread.current[:current_transaction_id] = self.transaction_id = SecureRandom.uuid
+        Thread.current[:current_transaction_id] = self.transaction_id = SecureRandom.uuid if self.changed_attributes.size > 0
       end
 
       private
