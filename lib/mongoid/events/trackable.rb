@@ -194,11 +194,11 @@ module Mongoid::Events
 
     module MyInstanceMethods
       def events_tracks
-        @events_tracks ||= events_trackable_options[:tracker_class].where('d.scope' => events_trackable_options[:scope], 'd.association_chain.name' => association_hash['name'], :'d.association_chain.id' => association_hash['id'])
+        @events_tracks ||= events_trackable_options[:tracker_class].where('d.scope' => events_trackable_options[:scope], 'd.association_chain.name' => association_hash['name'], :'d.association_chain.id' => association_hash['id']).order_by('t ASC')
       end
 
       def update_transaction_id
-        Thread.current[:current_transaction_id] = self.transaction_id = SecureRandom.uuid if self.changed_attributes.size > 0
+        Thread.current[:current_transaction_id] = self.transaction_id = SecureRandom.uuid #if self.changed_attributes.size > 0
       end
 
       private
