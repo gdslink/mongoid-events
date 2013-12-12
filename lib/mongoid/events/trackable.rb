@@ -235,11 +235,11 @@ module Mongoid::Events
       def modified_attributes_for_update
         @modified_attributes_for_update ||= if events_trackable_options[:on] == :all
                                               changes.reject do |k, v|
-                                                events_trackable_options[:except].include?(k)
+                                                events_trackable_options[:except].include?(k) or v[1].kind_of? Mongoid::EncryptedField
                                               end
                                             else
                                               changes.reject do |k, v|
-                                                !events_trackable_options[:on].include?(k)
+                                                !events_trackable_options[:on].include?(k) or v[1].kind_of? Mongoid::EncryptedField
                                               end
 
                                             end
