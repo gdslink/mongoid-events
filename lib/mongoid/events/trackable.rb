@@ -23,7 +23,7 @@ module Mongoid::Events
         # manually ensure _id, id, version will not be tracked in event
         options[:except] = [options[:except]] unless options[:except].is_a? Array
         options[:except] += options[:modifier_field]
-        options[:except] += [:_id, :id, :transaction_id]
+        options[:except] += [:_id, :id]
         options[:except] = options[:except].map(&:to_s).flatten.compact.uniq
         options[:except].map(&:to_s)
 
@@ -52,22 +52,15 @@ module Mongoid::Events
 
         options[:metric_class] = metric_class_name.constantize
 
-        field :transaction_id, :type => String
-
-        #add a transaction id to the scoped document
-        if options[:scope] == self.name
-          set_callback :save, :before, :update_transaction_id
-        end
-
         include MyInstanceMethods
         extend SingletonMethods
 
         delegate :events_trackable_options, :to => 'self.class'
         delegate :track_events?, :to => 'self.class'
 
-        before_update :track_update if options[:track_update]
-        before_create :track_create if options[:track_create]
-        before_destroy :destroy_events if options[:destroy_events]
+        after_update  :track_update if options[:track_update]
+        after_create  :track_create if options[:track_create]
+        after_destroy :destroy_events if options[:destroy_events]
 
         Mongoid::Events.trackable_class_options ||= {}
         Mongoid::Events.trackable_class_options[model_name] = options
@@ -197,18 +190,14 @@ module Mongoid::Events
         @events_tracks ||= events_trackable_options[:tracker_class].where('d.scope' => events_trackable_options[:scope], 'd.association_chain.name' => association_hash['name'], :'d.association_chain.id' => association_hash['id']).order_by('t ASC')
       end
 
-      def update_transaction_id
-        Thread.current[:current_transaction_id] = self.transaction_id = SecureRandom.uuid #if self.changed_attributes.size > 0
-      end
-
       private
 
       def should_track_create?
-        track_events? && (Thread.current[:current_transaction_id] != self.send(:transaction_id) or events_trackable_options[:scope] == self.class.to_s)
+        track_events? && events_trackable_options[:scope] == self.class.to_s
       end
 
       def should_track_update?
-        track_events? && !modified_attributes_for_update.blank? && (Thread.current[:current_transaction_id] != self.send(:transaction_id) or events_trackable_options[:scope] == self.class.to_s)
+        track_events? && !modified_attributes_for_update.blank? && events_trackable_options[:scope] == self.class.to_s
       end
 
       def should_track_destroy?
@@ -227,18 +216,17 @@ module Mongoid::Events
 
         #get index if it's an array
         index = node._parent.send(node.collection_name).size if node.respond_to? :_parent and node._parent and node._parent.send(node.collection_name).respond_to? :size
-        transaction_id = node.send(:transaction_id) if node.respond_to? :transaction_id
 
-        { 'name' => name, 'id' => node.id, 'transaction_id' => transaction_id, 'index' => index}
+        { 'name' => name, 'id' => node.id, 'index' => index}
       end
 
       def modified_attributes_for_update
         @modified_attributes_for_update ||= if events_trackable_options[:on] == :all
-                                              changes.reject do |k, v|
+                                              changes_with_relations.reject do |k, v|
                                                 events_trackable_options[:except].include?(k) or v[1].kind_of? Mongoid::EncryptedField
                                               end
                                             else
-                                              changes.reject do |k, v|
+                                              changes_with_relations.reject do |k, v|
                                                 !events_trackable_options[:on].include?(k) or v[1].kind_of? Mongoid::EncryptedField
                                               end
 
@@ -251,7 +239,7 @@ module Mongoid::Events
           h[k] = [nil, v]
           h
         end.reject do |k, v|
-          events_trackable_options[:except].include?(k)
+          events_trackable_options[:except].include?(k) or v[1].kind_of? Mongoid::EncryptedField
         end
       end
 
@@ -294,7 +282,7 @@ module Mongoid::Events
 
         @events_tracker_attributes[:original] = original
         @events_tracker_attributes[:modified] = modified
-        @events_tracker_attributes[:data] = attributes.reject{ |k, v| v.is_a?(Hash)}
+        @events_tracker_attributes[:data] = attributes
         @events_tracker_attributes
       end
 
@@ -317,7 +305,6 @@ module Mongoid::Events
 
       def track_update
         return unless should_track_update?
-        self.send(:transaction_id=, Thread.current[:current_transaction_id])
         record = events_tracker_attributes(:update).merge(:action => "update", :trackable => self, :association_path => association_path, :record_id => @events_tracker_attributes[:association_chain][0]['id'].to_s)
         invalidate_old_records
         events_trackable_options[:metric_class].destroy_all
@@ -327,7 +314,6 @@ module Mongoid::Events
 
       def track_create
         return unless should_track_create?
-        self.send(:transaction_id=, Thread.current[:current_transaction_id])
         record = events_tracker_attributes(:create).merge(:action => "create", :trackable => self, :association_path => association_path, :record_id =>  @events_tracker_attributes[:association_chain][0]['id'].to_s)
         events_trackable_options[:metric_class].destroy_all
         events_trackable_options[:tracker_class].create!(:d => record)
@@ -360,7 +346,6 @@ module Mongoid::Events
 
         return original.easy_diff modified
       end
-
     end
 
     module SingletonMethods
