@@ -307,7 +307,7 @@ module Mongoid::Events
         return unless should_track_update?
         record = events_tracker_attributes(:update).merge(:action => "update", :trackable => self, :association_path => association_path, :record_id => @events_tracker_attributes[:association_chain][0]['id'].to_s)
         invalidate_old_records
-        events_trackable_options[:metric_class].destroy_all
+        events_trackable_options[:metric_class].delete_all
         events_trackable_options[:tracker_class].create!(:d => record) if record[:modified].size > 0
         clear_memoization
       end
@@ -315,16 +315,16 @@ module Mongoid::Events
       def track_create
         return unless should_track_create?
         record = events_tracker_attributes(:create).merge(:action => "create", :trackable => self, :association_path => association_path, :record_id =>  @events_tracker_attributes[:association_chain][0]['id'].to_s)
-        events_trackable_options[:metric_class].destroy_all
+        events_trackable_options[:metric_class].delete_all
         events_trackable_options[:tracker_class].create!(:d => record)
         clear_memoization
       end
 
       def destroy_events
         return unless should_track_destroy?
-        events_trackable_options[:metric_class].destroy_all
+        events_trackable_options[:metric_class].delete_all
         records = events_trackable_options[:tracker_class].only(:_id).where('d.record_id' => self._id)
-        records.destroy_all
+        records.delete_all
         clear_memoization
       end
 
