@@ -22,7 +22,7 @@ module Mongoid::Events
         # normalize except fields
         # manually ensure _id, id, version will not be tracked in event
         options[:except] = [options[:except]] unless options[:except].is_a? Array
-        options[:except] += options[:modifier_field]
+        #options[:except] += options[:modifier_field]
         options[:except] += [:_id, :id]
         options[:except] = options[:except].map(&:to_s).flatten.compact.uniq
         options[:except].map(&:to_s)
