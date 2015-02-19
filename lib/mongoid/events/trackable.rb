@@ -58,8 +58,7 @@ module Mongoid::Events
         delegate :events_trackable_options, :to => 'self.class'
         delegate :track_events?, :to => 'self.class'
 
-        # after_update  :track_update if options[:track_update]
-        # after_create  :track_create if options[:track_create]
+
         after_destroy :destroy_events if options[:destroy_events]
 
         Mongoid::Events.trackable_class_options ||= {}
@@ -190,21 +189,31 @@ module Mongoid::Events
         @events_tracks ||= events_trackable_options[:tracker_class].where('d.scope' => events_trackable_options[:scope], 'd.association_chain.name' => association_hash['name'], :'d.association_chain.id' => association_hash['id'])
       end
 
-      def track_update
-        return unless should_track_update?
-        record = events_tracker_attributes(:update).merge(:action => "update", :trackable => self, :association_path => association_path, :record_id => @events_tracker_attributes[:association_chain][0]['id'].to_s)
-        invalidate_old_records
-        events_trackable_options[:metric_class].delete_all
-        events_trackable_options[:tracker_class].create!(:d => record) if record[:modified].size > 0
-        clear_memoization
+      def tracked_changes(action = :update)
+        events_tracker_attributes(action).merge(:action => action.to_s, :trackable => self, :association_path => association_path, :record_id => @events_tracker_attributes[:association_chain][0]['id'].to_s)
+      end
+
+      def track_update(data)
+        begin
+          return unless should_track_update?
+          record = data || tracked_changes(:update)
+          invalidate_old_records
+          events_trackable_options[:metric_class].delete_all
+          events_trackable_options[:tracker_class].create!(:d => record) if record[:modified].size > 0
+        ensure
+          clear_memoization
+        end
       end
 
       def track_create
-        return unless should_track_create?
-        record = events_tracker_attributes(:create).merge(:action => "create", :trackable => self, :association_path => association_path, :record_id =>  @events_tracker_attributes[:association_chain][0]['id'].to_s)
-        events_trackable_options[:metric_class].delete_all
-        events_trackable_options[:tracker_class].create!(:d => record)
-        clear_memoization
+        begin
+          return unless should_track_create?
+          record = tracked_changes(:create)
+          events_trackable_options[:metric_class].delete_all
+          events_trackable_options[:tracker_class].create!(:d => record)
+        ensure
+          clear_memoization
+        end
       end
 
       private
