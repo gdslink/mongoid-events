@@ -193,7 +193,7 @@ module Mongoid::Events
         events_tracker_attributes(action).merge(:action => action.to_s, :trackable => self, :association_path => association_path, :record_id => @events_tracker_attributes[:association_chain][0]['id'].to_s)
       end
 
-      def track_update(data)
+      def track_update(data = nil)
         begin
           return unless should_track_update?
           record = data || tracked_changes(:update)
