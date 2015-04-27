@@ -34,9 +34,9 @@ module Mongoid::Events
         end
 
 
-        options[:modifier_field].each do |field|
-          field field
-        end
+        # options[:modifier_field].each do |field|
+        #   field field
+        # end
 
 
         tracker_class_name = options[:tracker_class_name].to_s.classify + "Events"
