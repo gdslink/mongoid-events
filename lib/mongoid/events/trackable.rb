@@ -104,7 +104,7 @@ module Mongoid::Events
 
         klass.instance_eval{
           include Mongoid::Document
-          store_in collection: collection_name, database: self.database_name
+          store_in collection: collection_name#, database: self.database_name
         }
 
       end
@@ -134,7 +134,7 @@ module Mongoid::Events
 
         klass.instance_eval{
           include Mongoid::Document
-          store_in collection: collection_name, database: self.database_name
+          store_in collection: collection_name#, database: self.database_name
 
           field :t, :type => DateTime
 
