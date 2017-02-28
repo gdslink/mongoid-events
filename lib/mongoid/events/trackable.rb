@@ -322,7 +322,7 @@ module Mongoid::Events
       end
 
       def invalidate_old_records
-        records = events_trackable_options[:tracker_class].only([:_id, :'d.invalidate']).where('d.record_id' =>  @events_tracker_attributes[:association_chain][0]['id'].to_s).and('d.association_path' => association_path)
+        records = events_trackable_options[:tracker_class].where('d.record_id' =>  @events_tracker_attributes[:association_chain][0]['id'].to_s).and('d.association_path' => association_path)
         records.each do |r|
           invalidate_time = (Time.now.to_i - r.t.to_i) * 1000
           r.update_attribute('d.invalidate', invalidate_time)
