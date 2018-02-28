@@ -65,7 +65,7 @@ module Mongoid::Events
         Mongoid::Events.trackable_class_options[model_name] = options
 
 
-        @indexes = options[:tracker_class].collection.indexes.map { |k, v| k }
+        @indexes = options[:tracker_class].collection.indexes.map { |k, v| k } rescue []
 
         options[:tracker_class].collection.indexes.create_one({ :'d.record_id' => 1 }, {:background => true, :name => "record_id" }) if not indexes_include?("record_id")
         options[:tracker_class].collection.indexes.create_one({ :'d.association_path' => 1 }, {:background => true, :name  => "association_path" }) if not indexes_include?("association_path")
