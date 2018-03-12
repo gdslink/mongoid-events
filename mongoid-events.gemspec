@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
   s.name = "mongoid-events"
   s.version = "0.2.2"
 
-  s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
+  # s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Aaron Qian", "Justin Grimes", "Jean-Dominique Morani"]
   s.date = "2012-04-05"
   s.description = "This gem will capture CRUD events from a Mongoid model and keep track of them in its own collection [model_name]_events. It's compatible with Square Cube for time series reporting."
