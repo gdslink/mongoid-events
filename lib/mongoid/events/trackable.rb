@@ -350,7 +350,7 @@ module Mongoid::Events
         changes.each_pair do |k, v|
           o, m = v
           original[k] = o unless o.nil?
-          modified[k] = m unless m.nil?
+          modified[k] = m unless o.nil? && m.nil?
         end
 
         return original.easy_diff modified
