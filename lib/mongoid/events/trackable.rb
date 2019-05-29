@@ -353,7 +353,7 @@ module Mongoid::Events
           modified[k] = m unless o.nil? && m.nil?
         end
 
-        return original.easy_diff modified
+        [original, modified]
       end
     end
 
