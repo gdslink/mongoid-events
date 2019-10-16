@@ -8,14 +8,9 @@ module Mongoid::Events
       attr_writer :trackable
 
       field       :association_chain,       :type => Array,     :default => []
-      field       :data,                    :type => Hash
       field       :modified,                :type => Hash
-      field       :original,                :type => Hash
       field       :action,                  :type => String
       field       :scope,                   :type => String
-      field       :record_id,               :type => String
-      field       :association_path,        :type => String
-      field       :invalidate,              :type => Integer,   :default => 99999999999999
 
     end
 

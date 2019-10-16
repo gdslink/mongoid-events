@@ -67,9 +67,6 @@ module Mongoid::Events
 
         @indexes = options[:tracker_class].collection.indexes.map { |k, v| k }
 
-        options[:tracker_class].collection.indexes.create({ :'d.record_id' => 1 }, {:background => true, :name => "record_id" }) if not indexes_include?("record_id")
-        options[:tracker_class].collection.indexes.create({ :'d.association_path' => 1 }, {:background => true, :name  => "association_path" }) if not indexes_include?("association_path")
-        options[:tracker_class].collection.indexes.create({ :'d.invalidate' => 1 }, {:background => true, :name => "invalidate" }) if not indexes_include?("invalidate")
         options[:tracker_class].collection.indexes.create({ :'d.scope' => 1 }, {:background => true, :name => "scope" }) if not indexes_include?("scope")
         options[:tracker_class].collection.indexes.create({ :'d.association_chain.name' => 1 }, {:background => true, :name => "association_chain_name" }) if not indexes_include?("association_chain_name")
         options[:tracker_class].collection.indexes.create({ :'d.association_chain.id' => 1 }, {:background => true, :name => "association_chain_id" }) if not indexes_include?("association_chain_id")
@@ -190,14 +187,14 @@ module Mongoid::Events
       end
 
       def tracked_changes(action = :update)
-        events_tracker_attributes(action).merge(:action => action.to_s, :trackable => self, :association_path => association_path, :record_id => @events_tracker_attributes[:association_chain][0]['id'].to_s)
+        events_tracker_attributes(action).merge(:action => action.to_s, :trackable => self)
       end
 
       def track_update(data = nil)
         begin
           return unless should_track_update?
           record = data || tracked_changes(:update)
-          invalidate_old_records
+          # invalidate_old_records
           events_trackable_options[:metric_class].delete_all
           events_trackable_options[:tracker_class].create!(:d => record) if record[:modified].size > 0
         ensure
@@ -306,28 +303,28 @@ module Mongoid::Events
                                                  else modified_attributes_for_update
                                                end)
 
-        @events_tracker_attributes[:original] = original
         @events_tracker_attributes[:modified] = modified
-        @events_tracker_attributes[:data] = attributes
         @events_tracker_attributes
       end
+      
+      # 'association_path' field dropped
+      # def association_path
+      #   path = ''
+      #   @events_tracker_attributes[:association_chain][1..-1].each do |a|
+      #     path += '.' if not path.empty?
+      #     path += "#{a['name']}"
+      #   end
+      #   path
+      # end
 
-      def association_path
-        path = ''
-        @events_tracker_attributes[:association_chain][1..-1].each do |a|
-          path += '.' if not path.empty?
-          path += "#{a['name']}"
-        end
-        path
-      end
-
-      def invalidate_old_records
-        records = events_trackable_options[:tracker_class].only([:_id, :'d.invalidate']).where('d.record_id' =>  @events_tracker_attributes[:association_chain][0]['id'].to_s).and('d.association_path' => association_path)
-        records.each do |r|
-          invalidate_time = (Time.now.to_i - r.t.to_i) * 1000
-          r.update_attribute('d.invalidate', invalidate_time)
-        end
-      end
+      # 'invalidate' field dropped
+      # def invalidate_old_records
+      #   records = events_trackable_options[:tracker_class].only([:_id, :'d.invalidate']).where('d.record_id' =>  @events_tracker_attributes[:association_chain][0]['id'].to_s).and('d.association_path' => association_path)
+      #   records.each do |r|
+      #     invalidate_time = (Time.now.to_i - r.t.to_i) * 1000
+      #     r.update_attribute('d.invalidate', invalidate_time)
+      #   end
+      # end
 
       def destroy_events
         return unless should_track_destroy?
