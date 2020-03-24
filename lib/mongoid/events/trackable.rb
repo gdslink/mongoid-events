@@ -65,11 +65,13 @@ module Mongoid::Events
         Mongoid::Events.trackable_class_options[model_name] = options
 
 
-        @indexes = options[:tracker_class].collection.indexes.map { |k, v| k }
-
-        options[:tracker_class].collection.indexes.create({ :'d.scope' => 1 }, {:background => true, :name => "scope" }) if not indexes_include?("scope")
-        options[:tracker_class].collection.indexes.create({ :'d.association_chain.name' => 1 }, {:background => true, :name => "association_chain_name" }) if not indexes_include?("association_chain_name")
-        options[:tracker_class].collection.indexes.create({ :'d.association_chain.id' => 1 }, {:background => true, :name => "association_chain_id" }) if not indexes_include?("association_chain_id")
+        @indexes = options[:tracker_class].collection.indexes.map { |k, v| k } rescue []
+        options[:tracker_class].collection.indexes.create_one({ :'d.record_id' => 1 }, {:background => true, :name => "record_id" }) if not indexes_include?("record_id")
+        options[:tracker_class].collection.indexes.create_one({ :'d.association_path' => 1 }, {:background => true, :name  => "association_path" }) if not indexes_include?("association_path")
+        options[:tracker_class].collection.indexes.create_one({ :'d.invalidate' => 1 }, {:background => true, :name => "invalidate" }) if not indexes_include?("invalidate")
+        options[:tracker_class].collection.indexes.create_one({ :'d.scope' => 1 }, {:background => true, :name => "scope" }) if not indexes_include?("scope")
+        options[:tracker_class].collection.indexes.create_one({ :'d.association_chain.name' => 1 }, {:background => true, :name => "association_chain_name" }) if not indexes_include?("association_chain_name")
+        options[:tracker_class].collection.indexes.create_one({ :'d.association_chain.id' => 1 }, {:background => true, :name => "association_chain_id" }) if not indexes_include?("association_chain_id")
 
 
         start_pruning_thread(options[:tracker_class]) if options[:periodic_pruning]
