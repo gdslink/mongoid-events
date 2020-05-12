@@ -189,7 +189,8 @@ module Mongoid::Events
       end
 
       def tracked_changes(action = :update)
-        events_tracker_attributes(action).merge(:action => action.to_s, :trackable => self)
+        events_tracker_attributes(action).merge(:action => action.to_s, :trackable => self) #171
+        # events_tracker_attributes(action).merge(:action => action.to_s, :trackable => self, :association_path => association_path, :record_id => @events_tracker_attributes[:association_chain][0]['id'].to_s) #170
       end
 
       def track_update(data = nil)
@@ -349,11 +350,11 @@ module Mongoid::Events
         changes.each_pair do |k, v|
           o, m = v
           original[k] = o unless o.nil?
-          #modified[k] = m unless m.nil?
+
           modified[k] = m unless o.nil? && m.nil?
         end
 
-        return original.easy_diff modified
+        [original, modified]
       end
     end
 

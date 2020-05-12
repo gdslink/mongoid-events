@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
   s.name = "mongoid-events"
   s.version = "0.2.2"
 
-  s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
+  # s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Aaron Qian", "Justin Grimes", "Jean-Dominique Morani"]
   s.date = "2012-04-05"
   s.description = "This gem will capture CRUD events from a Mongoid model and keep track of them in its own collection [model_name]_events. It's compatible with Square Cube for time series reporting."
@@ -38,40 +38,47 @@ Gem::Specification.new do |s|
   s.homepage = "http://github.com/aq1018/mongoid-events"
   s.licenses = ["MIT"]
   s.require_paths = ["lib"]
-  s.rubygems_version = "1.8.15"
   s.summary = "cube, reporting, time series, events tracking, auditing, undo, redo for mongoid"
 
-  if s.respond_to? :specification_version then
-    s.specification_version = 3
-
-    if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
-      s.add_runtime_dependency(%q<easy_diff>, [">= 0"])
-      s.add_runtime_dependency(%q<mongoid>, [">= 2.0.0"])
-      s.add_development_dependency(%q<bson_ext>, [">= 0"])
-      s.add_development_dependency(%q<rspec>, [">= 0"])
-      s.add_development_dependency(%q<yard>, [">= 0"])
-      s.add_development_dependency(%q<bundler>, [">= 1.0.0"])
-      s.add_development_dependency(%q<jeweler>, [">= 0"])
-      s.add_development_dependency(%q<database_cleaner>, [">= 0"])
-    else
-      s.add_dependency(%q<easy_diff>, [">= 0"])
-      s.add_dependency(%q<mongoid>, [">= 2.0.0"])
-      s.add_dependency(%q<bson_ext>, [">= 0"])
-      s.add_dependency(%q<rspec>, [">= 0"])
-      s.add_dependency(%q<yard>, [">= 0"])
-      s.add_dependency(%q<bundler>, [">= 1.0.0"])
-      s.add_dependency(%q<jeweler>, [">= 0"])
-      s.add_dependency(%q<database_cleaner>, [">= 0"])
-    end
-  else
-    s.add_dependency(%q<easy_diff>, [">= 0"])
-    s.add_dependency(%q<mongoid>, [">= 2.0.0"])
-    s.add_dependency(%q<bson_ext>, [">= 0"])
-    s.add_dependency(%q<rspec>, [">= 0"])
-    s.add_dependency(%q<yard>, [">= 0"])
-    s.add_dependency(%q<bundler>, [">= 1.0.0"])
-    s.add_dependency(%q<jeweler>, [">= 0"])
-    s.add_dependency(%q<database_cleaner>, [">= 0"])
-  end
+  s.add_runtime_dependency(%q<easy_diff>, [">= 0"])
+  s.add_runtime_dependency(%q<mongoid>, [">= 2.0.0"])
+  s.add_development_dependency(%q<bson_ext>, [">= 0"])
+  s.add_development_dependency(%q<rspec>, [">= 0"])
+  s.add_development_dependency(%q<yard>, [">= 0"])
+  s.add_development_dependency(%q<bundler>, [">= 1.0.0"])
+  s.add_development_dependency(%q<jeweler>, [">= 0"])
+  s.add_development_dependency(%q<database_cleaner>, [">= 0"])
+  # if s.respond_to? :specification_version then
+  #   s.specification_version = 3
+  #
+  #   if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
+  #     s.add_runtime_dependency(%q<easy_diff>, [">= 0"])
+  #     s.add_runtime_dependency(%q<mongoid>, [">= 2.0.0"])
+  #     s.add_development_dependency(%q<bson_ext>, [">= 0"])
+  #     s.add_development_dependency(%q<rspec>, [">= 0"])
+  #     s.add_development_dependency(%q<yard>, [">= 0"])
+  #     s.add_development_dependency(%q<bundler>, [">= 1.0.0"])
+  #     s.add_development_dependency(%q<jeweler>, [">= 0"])
+  #     s.add_development_dependency(%q<database_cleaner>, [">= 0"])
+  #   else
+  #     s.add_dependency(%q<easy_diff>, [">= 0"])
+  #     s.add_dependency(%q<mongoid>, [">= 2.0.0"])
+  #     s.add_dependency(%q<bson_ext>, [">= 0"])
+  #     s.add_dependency(%q<rspec>, [">= 0"])
+  #     s.add_dependency(%q<yard>, [">= 0"])
+  #     s.add_dependency(%q<bundler>, [">= 1.0.0"])
+  #     s.add_dependency(%q<jeweler>, [">= 0"])
+  #     s.add_dependency(%q<database_cleaner>, [">= 0"])
+  #   end
+  # else
+  #   s.add_dependency(%q<easy_diff>, [">= 0"])
+  #   s.add_dependency(%q<mongoid>, [">= 2.0.0"])
+  #   s.add_dependency(%q<bson_ext>, [">= 0"])
+  #   s.add_dependency(%q<rspec>, [">= 0"])
+  #   s.add_dependency(%q<yard>, [">= 0"])
+  #   s.add_dependency(%q<bundler>, [">= 1.0.0"])
+  #   s.add_dependency(%q<jeweler>, [">= 0"])
+  #   s.add_dependency(%q<database_cleaner>, [">= 0"])
+  # end
 end
 
