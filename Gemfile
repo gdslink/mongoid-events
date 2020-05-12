@@ -2,6 +2,7 @@ source "http://rubygems.org"
 
 gem "easy_diff"
 gem "mongoid", ">= 2.0.0"
+gem 'request_store', "1.5.0"
 
 group :development do
   gem "bson_ext"

@@ -152,7 +152,7 @@ module Mongoid::Events
 
 
       def start_pruning_thread(tracker_class)
-        Thread.new(tracker_class){
+        RequestStore.store.new(tracker_class){
           begin
             while(1) do
               records = tracker_class.only(:_id).where('d.invalidate' => {'$lt' => 1.hour.to_i * 1000}, :t => {'$lt' => Time.now - 1.day})
@@ -166,16 +166,16 @@ module Mongoid::Events
       end
 
       def track_events?
-        enabled = Thread.current[track_events_flag]
+        enabled = RequestStore.store[track_events_flag]
         enabled.nil? ? true : enabled
       end
 
       def disable_tracking(&block)
         begin
-          Thread.current[track_events_flag] = false
+          RequestStore.store[track_events_flag] = false
           yield
         ensure
-          Thread.current[track_events_flag] = true
+          RequestStore.store[track_events_flag] = true
         end
       end
 
