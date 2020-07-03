@@ -64,7 +64,6 @@ module Mongoid::Events
         Mongoid::Events.trackable_class_options ||= {}
         Mongoid::Events.trackable_class_options[model_name] = options
 
-
         @indexes = options[:tracker_class].collection.indexes.map { |k, v| k } rescue []
         options[:tracker_class].collection.indexes.create_one({ :'d.record_id' => 1 }, {:background => true, :name => "record_id" }) if not indexes_include?("record_id")
         options[:tracker_class].collection.indexes.create_one({ :'d.association_path' => 1 }, {:background => true, :name  => "association_path" }) if not indexes_include?("association_path")
@@ -72,7 +71,6 @@ module Mongoid::Events
         options[:tracker_class].collection.indexes.create_one({ :'d.scope' => 1 }, {:background => true, :name => "scope" }) if not indexes_include?("scope")
         options[:tracker_class].collection.indexes.create_one({ :'d.association_chain.name' => 1 }, {:background => true, :name => "association_chain_name" }) if not indexes_include?("association_chain_name")
         options[:tracker_class].collection.indexes.create_one({ :'d.association_chain.id' => 1 }, {:background => true, :name => "association_chain_id" }) if not indexes_include?("association_chain_id")
-
 
         start_pruning_thread(options[:tracker_class]) if options[:periodic_pruning]
       end
@@ -193,16 +191,32 @@ module Mongoid::Events
         # events_tracker_attributes(action).merge(:action => action.to_s, :trackable => self, :association_path => association_path, :record_id => @events_tracker_attributes[:association_chain][0]['id'].to_s) #170
       end
 
-      def track_update(data = nil)
+      def track_update(data = nil, pAction="update")
+
         begin
+         
           return unless should_track_update?
-          record = data || tracked_changes(:update)
+          record = data || tracked_changes(pAction.to_sym)
           # invalidate_old_records
           events_trackable_options[:metric_class].delete_all
           events_trackable_options[:tracker_class].create!(:d => record) if record[:modified].size > 0
         ensure
           clear_memoization
         end
+      end
+
+      def track_lock(data = nil)
+        if data
+          data[:action] = "lock_application"
+        end
+        track_update(data, "lock_application")
+      end
+
+      def track_unlock(data = nil)
+        if data
+          data[:action] = "unlock_application"
+        end
+        track_update(data, "unlock_application")
       end
 
       def track_create
@@ -246,14 +260,17 @@ module Mongoid::Events
         { 'name' => name, 'id' => node.id, 'index' => index}
       end
 
+      def is_number? pString
+          true if Float(pString) rescue false
+      end
       def modified_attributes_for_update
         @modified_attributes_for_update ||= if events_trackable_options[:on] == :all
                                               changes_with_relations.reject do |k, v|
-                                                events_trackable_options[:except].include?(k) or v[1].kind_of? Mongoid::EncryptedField
+                                                events_trackable_options[:except].include?(k) or v[1].kind_of? Mongoid::EncryptedField or ( is_number?(v[0]) && is_number?(v[1]) && ( Float(v[0]) == Float(v[1]) ) )
                                               end
                                             else
                                               changes_with_relations.reject do |k, v|
-                                                !events_trackable_options[:on].include?(k) or v[1].kind_of? Mongoid::EncryptedField
+                                                !events_trackable_options[:on].include?(k) or v[1].kind_of? Mongoid::EncryptedField or ( is_number?(v[0]) && is_number?(v[1]) && ( Float(v[0]) == Float(v[1]) ) )
                                               end
 
                                             end
