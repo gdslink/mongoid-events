@@ -191,11 +191,10 @@ module Mongoid::Events
         # events_tracker_attributes(action).merge(:action => action.to_s, :trackable => self, :association_path => association_path, :record_id => @events_tracker_attributes[:association_chain][0]['id'].to_s) #170
       end
 
-      def track_update(data = nil, pAction="update")
+      def track_update(data = nil, pAction="update", pForce = false)
 
         begin
-
-          return unless should_track_update?
+          return unless should_track_update? || pForce
           record = data || tracked_changes(pAction.to_sym)
           # invalidate_old_records
           events_trackable_options[:metric_class].delete_all
@@ -304,6 +303,7 @@ module Mongoid::Events
 
 
       def events_tracker_attributes(method)
+
         return @events_tracker_attributes if @events_tracker_attributes
 
         @events_tracker_attributes = {
@@ -316,7 +316,6 @@ module Mongoid::Events
         events_trackable_options[:modifier_field].each do |field|
           @events_tracker_attributes.merge!(field => d.instance_eval("#{events_trackable_options[:modifier_src_table].to_s}.#{field}"))
         end
-
         original, modified = transform_changes(case method
                                                  when :destroy then modified_attributes_for_destroy
                                                  when :create then modified_attributes_for_create
@@ -370,7 +369,6 @@ module Mongoid::Events
 
           modified[k] = m unless o.nil? && m.nil?
         end
-
         [original, modified]
       end
     end
